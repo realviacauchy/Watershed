@@ -1,0 +1,81 @@
+---
+title: "watershed_euro_data"
+output: html_notebook
+---
+
+```{r load_packages}
+require(dplyr)
+require(tidyr)
+require(data.table)
+require(ggplot2)
+
+```
+
+Rename columns for consistency with African data columns. Remove splcing_pvalue and ase_pvalue columns
+```{r prepare_data}
+# european data on common features
+euro_df <- read.table('/work-zfs/abattle4/bstrober/rare_variant/gtex_v8/splicing/unsupervised_modeling/unsupervised_learning_input/fully_observed_merged_outliers_0.01_genes_intersection_between_te_ase_splicing_features_filter_no_tissue_anno_N2_pairs_3.txt', header=TRUE)
+
+## rename columns
+euro_df <- euro_df %>% rename(SubjectID = SubjectID, GeneName = GeneName, GC = gc, CpG = cpg, bStatistic = bstatistic, priPhCons = priphcons, mamPhCons = mamphcons, verPhCons = verphcons, priPhyloP = priphylop, mamPhyloP = mamphylop, verPhyloP = verphylop, GerpN = gerpn, GerpS = gerps, PHRED = phred, SIFTcat_deleterious = siftcat_deleterious, SIFTcat_tolerated = siftcat_tolerated, SIFTval = siftval, PolyPhenCat_benign = polyphencat_benign, PolyPhenCat_possibly_damaging = polyphencat_possibly_damaging, PolyPhenCat_probably_damaging = polyphencat_probably_damaging, PolyPhenCat_unknown = polyphencat_unknown, PolyPhenVal = polyphenval, dist_to_tss = distTSS, N2pair = N2pair)
+
+# remove splicing and ase pvalues
+euro_df <- subset(euro_df, select = -c(splicing_pvalue,ase_pvalue) )
+
+## save version that keeps all features
+euro_data_all <- "/scratch/groups/abattle4/victor/GTExV8_RareVariationData/RIVER/river_input_v8_european_all_06-09-2020.txt"
+write.table(x = euro_df, row.names = FALSE, quote = FALSE, file = euro_data_all)
+```
+
+Evaluate RIVER
+```{bash evaluate_river_watershed}
+# European all features
+euro_data_all="/scratch/groups/abattle4/victor/GTExV8_RareVariationData/RIVER/river_input_v8_european_all_06-09-2020.txt"
+Rscript evaluate_watershed.R --input $euro_data_all --number_dimensions 1 --output_prefix "/scratch/groups/abattle4/victor/GTExV8_RareVariationData/RIVER/eval_euro_all" --model_name RIVER
+```
+
+```{r plot_function}
+
+plot_ROC <- function(evaOutput, top_title=NULL){
+RIVER_plotdata <- data.frame(spec=evaOutput[["auc"]][[1]][["evaROC"]][["watershed_spec"]],
+                             sens=evaOutput[["auc"]][[1]][["evaROC"]][["watershed_sens"]])
+GAM_plotdata <- data.frame(spec=evaOutput[["auc"]][[1]][["evaROC"]][["GAM_spec"]],
+                           sens=evaOutput[["auc"]][[1]][["evaROC"]][["GAM_sens"]])
+
+subtitle_text=paste("AUC: RIVER = ",round(evaOutput[["auc"]][[1]][["evaROC"]][["watershed_auc"]],3),
+                 ", GAM = ", round(evaOutput[["auc"]][[1]][["evaROC"]][["GAM_auc"]],3),sep="")
+g <- ggplot() +
+  geom_line(aes(color="GAM",x=1-spec,y=sens),data=GAM_plotdata) +
+  geom_line(aes(color="RIVER",x=1-spec,y=sens),data=RIVER_plotdata) +
+  xlab("False Positive Rate") +
+  ylab('True Positive Rate') +
+  geom_abline(color="grey",slope = 1,intercept = 0) +
+  ggtitle(label = top_title,subtitle = subtitle_text) +
+  labs(colour = "Model")
+return(g)
+}
+
+plot_pre_recall <- function(evaOutput, top_title=NULL){
+RIVER_plotdata <- data.frame(precision=evaOutput[["auc"]][[1]][["evaROC"]][["watershed_precision"]],
+                             recall=evaOutput[["auc"]][[1]][["evaROC"]][["watershed_recall"]])
+GAM_plotdata <- data.frame(precision=evaOutput[["auc"]][[1]][["evaROC"]][["GAM_precision"]],
+                           recall=evaOutput[["auc"]][[1]][["evaROC"]][["GAM_recall"]])
+g <- ggplot() +
+  geom_line(aes(color="GAM",x=recall,y=precision),data=GAM_plotdata) +
+  geom_line(aes(color="RIVER",x=recall,y=precision),data=RIVER_plotdata) +
+  xlab("Recall") +
+  ylab('Precision') +
+  ggtitle(label = top_title) +
+  labs(colour = "Model")
+return(g)
+}
+```
+
+
+```{r plot_river_watershed}
+
+eval_euro_all <- readRDS("/scratch/groups/abattle4/victor/GTExV8_RareVariationData/RIVER/eval_euro_all_evaluation_object.rds")
+
+plot_ROC(eval_euro_all, top_title="European All Features")
+plot_pre_recall(eval_euro_all, top_title="European All Features")
+```
