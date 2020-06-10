@@ -3,7 +3,7 @@ title: "watershed_euro_data"
 output: html_notebook
 ---
 
-```{r load_packages}
+```{r load_packages, echo=FALSE}
 require(dplyr)
 require(tidyr)
 require(data.table)
@@ -11,8 +11,8 @@ require(ggplot2)
 
 ```
 
-Rename columns for consistency with African data columns. Remove splcing_pvalue and ase_pvalue columns
-```{r prepare_data}
+Rename columns for consistency with African data columns. Remove splicing_pvalue and ase_pvalue columns
+```{r prepare_data, cache=TRUE}
 # european data on common features
 euro_df <- read.table('/work-zfs/abattle4/bstrober/rare_variant/gtex_v8/splicing/unsupervised_modeling/unsupervised_learning_input/fully_observed_merged_outliers_0.01_genes_intersection_between_te_ase_splicing_features_filter_no_tissue_anno_N2_pairs_3.txt', header=TRUE)
 
@@ -23,18 +23,18 @@ euro_df <- euro_df %>% rename(SubjectID = SubjectID, GeneName = GeneName, GC = g
 euro_df <- subset(euro_df, select = -c(splicing_pvalue,ase_pvalue) )
 
 ## save version that keeps all features
-euro_data_all <- "/scratch/groups/abattle4/victor/GTExV8_RareVariationData/RIVER/river_input_v8_european_all_06-09-2020.txt"
+euro_data_all <- "./river_input_v8_european_all_06-09-2020.txt"
 write.table(x = euro_df, row.names = FALSE, quote = FALSE, file = euro_data_all)
 ```
 
 Evaluate RIVER
-```{bash evaluate_river_watershed}
+```{bash evaluate_river_watershed, cache=TRUE}
 # European all features
-euro_data_all="/scratch/groups/abattle4/victor/GTExV8_RareVariationData/RIVER/river_input_v8_european_all_06-09-2020.txt"
-Rscript evaluate_watershed.R --input $euro_data_all --number_dimensions 1 --output_prefix "/scratch/groups/abattle4/victor/GTExV8_RareVariationData/RIVER/eval_euro_all" --model_name RIVER
+euro_data_all="./river_input_v8_european_all_06-09-2020.txt"
+Rscript evaluate_watershed.R --input $euro_data_all --number_dimensions 1 --output_prefix "./eval_euro_all" --model_name RIVER
 ```
 
-```{r plot_function}
+```{r plot_function, cache=TRUE}
 
 plot_ROC <- function(evaOutput, top_title=NULL){
 RIVER_plotdata <- data.frame(spec=evaOutput[["auc"]][[1]][["evaROC"]][["watershed_spec"]],
@@ -72,9 +72,9 @@ return(g)
 ```
 
 
-```{r plot_river_watershed}
+```{r plot_river_watershed, cache=TRUE}
 
-eval_euro_all <- readRDS("/scratch/groups/abattle4/victor/GTExV8_RareVariationData/RIVER/eval_euro_all_evaluation_object.rds")
+eval_euro_all <- readRDS("./eval_euro_all_evaluation_object.rds")
 
 plot_ROC(eval_euro_all, top_title="European All Features")
 plot_pre_recall(eval_euro_all, top_title="European All Features")
